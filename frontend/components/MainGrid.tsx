@@ -3,72 +3,79 @@ import { ColDef, GetRowIdParams, GridApi, GridOptions } from "ag-grid-enterprise
 import { AgGridReact } from "ag-grid-react";
 import { formatContractMonth, formatFinanceNumber } from "@/lib/format";
 import { useCallback, useMemo, useState } from "react";
+import { columnDefs } from "@/lib/gridDefs";
+import GridToolbar from "./GridToolbar";
 
 interface DataRow {
   customGroup?: string;
-  px_location: number;
+  px_location: string;
   contract_month: string;
   deltaposition: number;
   pnl_vector: number[];
+  idx: string;
+}
+
+type GroupCache = {
+  [key: string]: string
 }
 
 const fetcher = (url: string): Promise<DataRow[]> =>
   fetch(url).then((res) => res.json());
-
-function parsePnLVector(vector: string): number[] {
-  if (!vector) return [];
-  const cleanedVector = vector.replace(/[\[\]]/g, "").trim();
-  return cleanedVector.split(",").map(Number);
-}
-
-function computeVaR(
-  vector: number[],
-  lookback: number = 251,
-  confidenceLevel: number = 0.05
-): number {
-  const slicedVector = vector.slice(-lookback);
-  const sortedVector = slicedVector.sort((a, b) => a - b);
-  const index = Math.floor(sortedVector.length * confidenceLevel);
-  return sortedVector[index];
-}
 
 const MainGrid = () => {
   const { data, error } = useSWR<DataRow[]>(
     "http://localhost:8000/var/pnl_vectors",
     fetcher
   );
+
   const [localData, setLocalData] = useState<DataRow[]>([]);
+  const [customGroupCache, setCustomGroupCache] = useState<GroupCache>({});
 
   // Initialize localData when data is fetched
   if (data && localData.length === 0) {
     const groupedData = data.map((row) => {
-      if (!row.customGroup) {
-        return {...row, customGroup: row.px_location.toString()};
+      return {
+        ...row,
+        customGroup: customGroupCache[row.idx] || row.px_location
       }
-      return row;
     });
     setLocalData(groupedData)
   }
 
-  const getRowId = useCallback((params: GetRowIdParams) => params.data.idx, [])
+  const groupByPxLocation = useCallback(() => {
+    const groupedData = localData.map((row) => {
+      return {
+        ...row,
+        customGroup: customGroupCache[row.idx] || row.px_location
+      }
+    });
+    setLocalData(groupedData)
+  }, []);
 
+  const getRowId = useCallback((params: GetRowIdParams) => params.data.idx, [])
 
   const addRowsToGroup = useCallback(
     (groupName: string, selectedNodes: any[]) => {
       if (!localData) return;
+      const newCache = { ...customGroupCache }
+      console.log(newCache)
 
       setLocalData((prevData) => {
         const newData = prevData.map((row) => {
           if (selectedNodes.some((node) => node.data === row)) {
+            newCache[row.idx] = groupName;
             return { ...row, customGroup: groupName };
           }
           return row;
         });
+        setCustomGroupCache(newCache)
         return newData;
       });
     },
-    [localData]
+    [localData, customGroupCache]
   );
+
+  const logCache = () => {console.log(customGroupCache)}
 
   // Context menu to assign rows to a custom group
   const getContextMenuItems: any = useCallback(
@@ -103,61 +110,10 @@ const MainGrid = () => {
       headerName: 'Group',
       field: 'px_location',
       filter: 'agGroupColumnFilter',
-      cellStyle: {fontWeight: "500"},
+      cellStyle: { fontWeight: "500" },
     }
   }, [])
 
-  const columnDefs: ColDef[] = [
-    // {
-    //   headerName: "PX Location",
-    //   field: "px_location",
-    //   cellStyle: { fontWeight: "500" },
-    // },
-    {
-      headerName: "Contract Month",
-      field: "contract_month",
-      valueFormatter: (params) => {
-        return params.value === "2006-06-01" // Equity
-          ? ""
-          : formatContractMonth(params.value);
-      },
-    },
-    {
-      headerName: "Delta Position",
-      field: "deltaposition",
-      valueFormatter: (params) => {
-        return formatFinanceNumber(params.value);
-      },
-      aggFunc: (params) => {
-        return params.values.reduce((v, s) => v + s, 0);
-      },
-    },
-    {
-      headerName: "1Y VaR",
-      field: "pnl_vector",
-      valueFormatter: (params) => {
-        if (params.node.group) {
-          return formatFinanceNumber(params.value);
-        }
-        const vector = parsePnLVector(params.value);
-        return formatFinanceNumber(computeVaR(vector));
-      },
-      aggFunc: (params) => {
-        const allVectors = params.values.map((v: string) => parsePnLVector(v));
-        const summedPnL = allVectors.reduce((acc, curr) => {
-          if (acc.length === 0) return [...curr];
-          return acc.map((value, index) => value + (curr[index] || 0));
-        }, []);
-        return computeVaR(summedPnL);
-      },
-    },
-    {
-      headerName: "Custom Group",
-      field: "customGroup",
-      rowGroup: true,
-      hide: true,
-    },
-  ];
 
   const gridOptions: GridOptions = {
     getContextMenuItems,
@@ -175,7 +131,10 @@ const MainGrid = () => {
   if (!data) return <div>Loading...</div>;
 
   return (
-    <div className="ag-theme-alpine h-full w-full p-10">
+    <div className="ag-theme-alpine h-full w-full p-10 flex-col">
+      {/* <GridToolbar /> */}
+      <button className="w-40 h-10" onClick={groupByPxLocation}>group by px location</button>
+      <button className="w-40 h-10" onClick={logCache}>LOG GROUP CACHE</button>
       <AgGridReact
         rowData={localData}
         columnDefs={columnDefs}
