@@ -2,47 +2,35 @@ import useSWR from "swr";
 import { ColDef, colorSchemeDark, colorSchemeDarkBlue, colorSchemeDarkWarm, colorSchemeLightCold, GetRowIdParams, GridApi, GridOptions, themeBalham } from "ag-grid-enterprise";
 import { AgGridReact } from "ag-grid-react";
 import { formatContractMonth, formatFinanceNumber } from "@/lib/format";
-import { useCallback, useMemo, useState } from "react";
-import { columnDefs } from "@/lib/gridDefs";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { columnDefs, DataRow } from "@/lib/gridDefs";
 import GridToolbar from "./GridToolbar";
 import { Button } from "@/components/ui/button"
+import TraderSelection from "./TraderSelection";
+import useTraderPnlVectors from "@/hooks/useTraderPnlVectors";
 
-
-interface DataRow {
-  customGroup?: string;
-  px_location: string;
-  contract_month: string;
-  deltaposition: number;
-  pnl_vector: number[];
-  idx: string;
-}
 
 type GroupCache = {
   [key: string]: string
 }
 
-const fetcher = (url: string): Promise<DataRow[]> =>
-  fetch(url).then((res) => res.json());
-
 const MainGrid = () => {
-  const { data, error } = useSWR<DataRow[]>(
-    "http://localhost:8000/var/pnl_vectors_test",
-    fetcher
-  );
-
+  const { pnlVectors: data, isLoading } = useTraderPnlVectors()
   const [localData, setLocalData] = useState<DataRow[]>([]);
   const [customGroupCache, setCustomGroupCache] = useState<GroupCache>({});
 
   // Initialize localData when data is fetched
-  if (data && localData.length === 0) {
-    const groupedData = data.map((row) => {
-      return {
-        ...row,
-        customGroup: customGroupCache[row.idx] || row.px_location
-      }
-    });
-    setLocalData(groupedData)
-  }
+  useEffect(() => {
+    if (data) {
+      const groupedData = data.map((row) => {
+        return {
+          ...row,
+          customGroup: customGroupCache[row.idx] || row.px_location
+        }
+      });
+      setLocalData(groupedData)
+    }
+  }, [data, isLoading])
 
   const getRowId = useCallback((params: GetRowIdParams) => params.data.idx, [])
 
@@ -130,6 +118,7 @@ const MainGrid = () => {
       field: 'px_location',
       filter: 'agGroupColumnFilter',
       cellStyle: { fontWeight: "500" },
+      minWidth: 400,
     }
   }, [])
 
@@ -147,16 +136,17 @@ const MainGrid = () => {
     }
   };
 
-  if (error) return <div>Error loading data.</div>;
-  if (!data) return <div>Loading...</div>;
-
   return (
-    <div className="h-full w-full p-10 flex-col">
+    <div className="h-full w-full p-10 flex flex-col gap-4">
       {/* <GridToolbar /> */}
-      <Button variant="outline" onClick={groupByPxLocation}>group by px location</Button>
-      <Button variant="outline" onClick={groupByContractMonth}>group by contract month</Button>
-      <Button variant="outline" onClick={logCache}>LOG GROUP CACHE</Button>
+      <div className="flex gap-4">
+        <TraderSelection />
+        <Button variant="outline" onClick={groupByPxLocation}>group by px location</Button>
+        <Button variant="outline" onClick={groupByContractMonth}>group by contract month</Button>
+        <Button variant="outline" onClick={logCache}>LOG GROUP CACHE</Button>
+      </div>
       <AgGridReact
+        loading={isLoading}
         rowData={localData}
         columnDefs={columnDefs}
         gridOptions={gridOptions}

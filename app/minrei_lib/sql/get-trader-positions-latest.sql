@@ -1,0 +1,37 @@
+select rt.valuation_date, rt.px_location, rt.deltaposition, p.price, rt.forwardmo as forward_month, rt.contract_month,
+	rt.gammaposition, rt.thetaposition, rt.vegaposition, -- options
+	pd.currency, case when fx.rate is not null then fx.rate else 1 end as rate, price_basis,
+	rt.uom, cb.contract_size, 
+	pfc.exp_code, rt.producttype, cg.commoditygroup, sc.supercommodity, rt.strategynumber,
+	tm.weight
+from report_table rt with (nolock)
+inner join price p
+	on rt.valuation_date = p.px_date and rt.px_location = p.px_location and rt.forwardmo = p.forward_month
+left join proxy_forward_curve pfc
+	on rt.px_location = pfc.px_location
+inner join price_desc pd
+	on p.px_location = pd.px_location
+left join contract_basis cb
+	on rt.px_location = cb.px_location
+left join fx_rate_hist fx
+	on rt.valuation_date = fx.rate_date and pd.currency = fx.currency2 and fx.currency1 = 'USD' and pd.currency != 'USD' -- Only join FX rates for non-USD
+inner join commoditygroup cg
+	on cg.px_location = rt.px_location
+inner join supercommodity sc
+	on cg.commoditygroup = sc.commoditygroup
+inner join tradermap tm
+	on rt.strategynumber = tm.strategynumber and rt.portfolio = tm.portfolio and tm.traderorgroup = 'trader'
+where rt.valuation_date = (select top 1 valuation_date from report_table where portfolio = 'hetcoport' order by valuation_date desc)
+	and rt.portfolio = 'hetcoport'
+	and tm.trader = '{trader_name}'
+	and rt.producttype not like '%0%'
+	and rt.deltaposition is not NULL        -- Excludes NULL
+	and rt.deltaposition != 0               -- Excludes 0s
+	and rt.deltaposition = rt.deltaposition -- Trick to exclude NaN
+	and (
+		(rt.gammaposition != 0 and abs(rt.gammaposition) >= 0.0001)
+		or (rt.thetaposition != 0 and abs(rt.thetaposition) >= 0.0001)
+		or (rt.vegaposition != 0 and abs(rt.vegaposition) >= 0.0001)
+		or abs(rt.deltaposition) >= 0.0001  -- Not an option
+	)                                       -- Excludes tiny positions 
+order by rt.valuation_date, rt.px_location, rt.forwardmo, rt.contract_month, rt.deltaposition

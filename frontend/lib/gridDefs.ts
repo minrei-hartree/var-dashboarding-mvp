@@ -5,20 +5,17 @@ import { formatContractMonth, formatFinanceNumber } from "@/lib/format";
 import { useCallback, useMemo, useState } from "react";
 import { computeVaR, parsePnLVector } from "@/lib/utils";
 
-interface DataRow {
+export interface DataRow {
   customGroup?: string;
-  px_location: number;
+  px_location: string;
   contract_month: string;
   deltaposition: number;
   pnl_vector: number[];
+  idx: string;
 }
 
+
 export const columnDefs: ColDef[] = [
-    // {
-    //   headerName: "PX Location",
-    //   field: "px_location",
-    //   cellStyle: { fontWeight: "500" },
-    // },
     {
       headerName: "Contract Month",
       field: "contract_month",
@@ -42,17 +39,16 @@ export const columnDefs: ColDef[] = [
       headerName: "1Y VaR",
       field: "pnl_vector",
       valueFormatter: (params) => {
-        if (params.node.group) {
+        if (params.node.group) { // already VaR
           return formatFinanceNumber(params.value);
-        }
-        const vector = parsePnLVector(params.value);
-        return formatFinanceNumber(computeVaR(vector));
+        } // raw pnl vector
+        return formatFinanceNumber(computeVaR(params.value));
       },
       aggFunc: (params) => {
-        const allVectors = params.values.map((v: string) => parsePnLVector(v));
-        const summedPnL = allVectors.reduce((acc, curr) => {
+        // const allVectors = params.values.map((v: string) => parsePnLVector(v));
+        const summedPnL = params.values.reduce((acc, curr) => {
           if (acc.length === 0) return [...curr];
-          return acc.map((value, index) => value + (curr[index] || 0));
+          return acc.map((value: number, index: number) => value + (curr[index] || 0));
         }, []);
         return computeVaR(summedPnL);
       },

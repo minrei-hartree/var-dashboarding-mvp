@@ -1,10 +1,16 @@
 import pandas as pd
 from fastapi import APIRouter
+from ..minrei_lib import Core
 
 router = APIRouter()
 
 @router.get('/var/pnl_vectors', tags=['var'])
-async def get_pnl_vectors():
+async def get_pnl_vectors(trader: str):
+    df = Core.generate_pnl_vectors(trader)
+    return df.to_dict(orient='records')
+
+@router.get('/var/pnl_vectors_test', tags=['var'])
+async def get_pnl_vectors_test():
     df = pd.read_csv("./sample_pnl_vectors.csv")
     return df.to_dict(orient='records')
 

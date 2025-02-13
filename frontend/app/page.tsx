@@ -5,6 +5,7 @@ import React from "react";
 import { ModuleRegistry } from "ag-grid-community";
 import { AllEnterpriseModule, LicenseManager } from "ag-grid-enterprise";
 import MainGrid from "@/components/MainGrid";
+import TraderSelection from "@/components/TraderSelection";
 
 ModuleRegistry.registerModules([AllEnterpriseModule]);
 LicenseManager.setLicenseKey("");
