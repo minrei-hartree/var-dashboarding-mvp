@@ -8,7 +8,7 @@ const useTraderPnlVectors = () => {
   const pnlFetcher = (url: string): Promise<DataRow[]> =>
     fetch(url).then((res) => res.json())
 
-  const { data: traders, error } = useSWR<string[]>(
+  const { data: traders, isLoading: isLoadingTraders } = useSWR<string[]>(
     "http://localhost:8000/utils/traders",
     tradersListFetcher
   )
@@ -19,17 +19,18 @@ const useTraderPnlVectors = () => {
     { fallbackData: '' }
   )
 
-  const { data: pnlVectors, isLoading } = useSWR<DataRow[]>(
+  const { data: pnlVectors, isLoading: isLoadingVectors } = useSWR<DataRow[]>(
     selectedTrader && `http://localhost:8000/var/pnl_vectors?trader=${selectedTrader}`,
     pnlFetcher
   )
 
   return {
     traders,
+    isLoadingTraders,
     selectedTrader,
     setSelectedTrader,
     pnlVectors,
-    isLoading
+    isLoadingVectors
   }
 }
 

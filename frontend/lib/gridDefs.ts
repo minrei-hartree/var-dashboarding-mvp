@@ -39,7 +39,7 @@ export const columnDefs: ColDef[] = [
       headerName: "1Y VaR",
       field: "pnl_vector",
       valueFormatter: (params) => {
-        if (params.node.group) { // already VaR
+        if (params?.node?.group) { // already VaR
           return formatFinanceNumber(params.value);
         } // raw pnl vector
         return formatFinanceNumber(computeVaR(params.value));

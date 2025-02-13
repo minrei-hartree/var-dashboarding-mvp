@@ -18,37 +18,11 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import useSWR from "swr"
-import { DataRow } from "@/lib/gridDefs"
-import { useEffect } from "react"
 import useTraderPnlVectors from "@/hooks/useTraderPnlVectors"
-
-const traders = [
-  {
-    value: "next.js",
-    label: "Next.js",
-  },
-  {
-    value: "sveltekit",
-    label: "SvelteKit",
-  },
-  {
-    value: "nuxt.js",
-    label: "Nuxt.js",
-  },
-  {
-    value: "remix",
-    label: "Remix",
-  },
-  {
-    value: "astro",
-    label: "Astro",
-  },
-]
 
 const TraderSelection = () => {
   const [open, setOpen] = React.useState(false)
-  const { traders, selectedTrader, setSelectedTrader } = useTraderPnlVectors()
+  const { traders, isLoadingTraders, selectedTrader, setSelectedTrader } = useTraderPnlVectors()
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -69,7 +43,9 @@ const TraderSelection = () => {
         <Command>
           <CommandInput placeholder="Search Trader..." className="h-9" />
           <CommandList>
-            <CommandEmpty>No trader found.</CommandEmpty>
+            <CommandEmpty>
+              {isLoadingTraders ? "Fetching Traders..." : "No Trader Found."}
+            </CommandEmpty>
             <CommandGroup>
               {traders?.map((trader) => (
                 <CommandItem

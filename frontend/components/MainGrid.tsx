@@ -15,7 +15,7 @@ type GroupCache = {
 }
 
 const MainGrid = () => {
-  const { pnlVectors: data, isLoading } = useTraderPnlVectors()
+  const { pnlVectors: data, isLoadingVectors } = useTraderPnlVectors()
   const [localData, setLocalData] = useState<DataRow[]>([]);
   const [customGroupCache, setCustomGroupCache] = useState<GroupCache>({});
 
@@ -30,7 +30,7 @@ const MainGrid = () => {
       });
       setLocalData(groupedData)
     }
-  }, [data, isLoading])
+  }, [data, isLoadingVectors])
 
   const getRowId = useCallback((params: GetRowIdParams) => params.data.idx, [])
 
@@ -118,7 +118,7 @@ const MainGrid = () => {
       field: 'px_location',
       filter: 'agGroupColumnFilter',
       cellStyle: { fontWeight: "500" },
-      minWidth: 400,
+      minWidth: 300,
     }
   }, [])
 
@@ -146,7 +146,7 @@ const MainGrid = () => {
         <Button variant="outline" onClick={logCache}>LOG GROUP CACHE</Button>
       </div>
       <AgGridReact
-        loading={isLoading}
+        loading={isLoadingVectors}
         rowData={localData}
         columnDefs={columnDefs}
         gridOptions={gridOptions}
