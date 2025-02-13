@@ -1,8 +1,12 @@
-export function formatContractMonth(dateString: string, useFuturesCode: boolean = false): string {
+export function formatContractMonth(dateString: string, useFuturesCode: boolean = true): string {
   if (!dateString) return ""; // Return empty string if dateString is null or undefined
 
   const date = new Date(dateString);
   const year = date.getFullYear().toString().slice(-2);
+
+  if (year === '06') {
+    return "Equity";
+  }
 
   if (useFuturesCode) {
     const month = date.getMonth(); // 0 (January) to 11 (December)

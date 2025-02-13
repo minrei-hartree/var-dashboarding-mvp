@@ -1,10 +1,12 @@
 import useSWR from "swr";
-import { ColDef, GetRowIdParams, GridApi, GridOptions } from "ag-grid-enterprise";
+import { ColDef, colorSchemeDark, colorSchemeDarkBlue, colorSchemeDarkWarm, colorSchemeLightCold, GetRowIdParams, GridApi, GridOptions, themeBalham } from "ag-grid-enterprise";
 import { AgGridReact } from "ag-grid-react";
 import { formatContractMonth, formatFinanceNumber } from "@/lib/format";
 import { useCallback, useMemo, useState } from "react";
 import { columnDefs } from "@/lib/gridDefs";
 import GridToolbar from "./GridToolbar";
+import { Button } from "@/components/ui/button"
+
 
 interface DataRow {
   customGroup?: string;
@@ -24,7 +26,7 @@ const fetcher = (url: string): Promise<DataRow[]> =>
 
 const MainGrid = () => {
   const { data, error } = useSWR<DataRow[]>(
-    "http://localhost:8000/var/pnl_vectors",
+    "http://localhost:8000/var/pnl_vectors_test",
     fetcher
   );
 
@@ -42,6 +44,8 @@ const MainGrid = () => {
     setLocalData(groupedData)
   }
 
+  const getRowId = useCallback((params: GetRowIdParams) => params.data.idx, [])
+
   const groupByPxLocation = useCallback(() => {
     const groupedData = localData.map((row) => {
       return {
@@ -50,32 +54,47 @@ const MainGrid = () => {
       }
     });
     setLocalData(groupedData)
-  }, []);
+  }, [localData, customGroupCache]);
 
-  const getRowId = useCallback((params: GetRowIdParams) => params.data.idx, [])
+  const groupByContractMonth = useCallback(() => {
+    const groupedData = localData.map((row) => {
+      return {
+        ...row,
+        customGroup: customGroupCache[row.idx] || formatContractMonth(row.contract_month)
+      }
+    })
+    setLocalData(groupedData)
+  }, [localData, customGroupCache])
 
   const addRowsToGroup = useCallback(
     (groupName: string, selectedNodes: any[]) => {
       if (!localData) return;
-      const newCache = { ...customGroupCache }
-      console.log(newCache)
 
       setLocalData((prevData) => {
+        const updatedCacheEntries: Array<{ idx: string; group: string }> = []
         const newData = prevData.map((row) => {
           if (selectedNodes.some((node) => node.data === row)) {
-            newCache[row.idx] = groupName;
+            updatedCacheEntries.push({ idx: row.idx, group: groupName })
             return { ...row, customGroup: groupName };
           }
           return row;
         });
-        setCustomGroupCache(newCache)
-        return newData;
+
+        setCustomGroupCache((prevCache) => {
+          const newCache = { ...prevCache }
+          updatedCacheEntries.forEach((entry) => {
+            newCache[entry.idx] = entry.group
+          })
+          return newCache
+        })
+
+        return newData
       });
     },
-    [localData, customGroupCache]
+    [localData]
   );
 
-  const logCache = () => {console.log(customGroupCache)}
+  const logCache = () => { console.log(customGroupCache) }
 
   // Context menu to assign rows to a custom group
   const getContextMenuItems: any = useCallback(
@@ -116,6 +135,7 @@ const MainGrid = () => {
 
 
   const gridOptions: GridOptions = {
+    theme: themeBalham.withPart(colorSchemeLightCold),
     getContextMenuItems,
     suppressContextMenu: false,
     rowSelection: "multiple",
@@ -131,10 +151,11 @@ const MainGrid = () => {
   if (!data) return <div>Loading...</div>;
 
   return (
-    <div className="ag-theme-alpine h-full w-full p-10 flex-col">
+    <div className="h-full w-full p-10 flex-col">
       {/* <GridToolbar /> */}
-      <button className="w-40 h-10" onClick={groupByPxLocation}>group by px location</button>
-      <button className="w-40 h-10" onClick={logCache}>LOG GROUP CACHE</button>
+      <Button variant="outline" onClick={groupByPxLocation}>group by px location</Button>
+      <Button variant="outline" onClick={groupByContractMonth}>group by contract month</Button>
+      <Button variant="outline" onClick={logCache}>LOG GROUP CACHE</Button>
       <AgGridReact
         rowData={localData}
         columnDefs={columnDefs}
